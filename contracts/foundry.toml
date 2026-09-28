@@ -1,0 +1,15 @@
+[profile.default]
+src = "src"
+test = "test"
+out = ".forge-out"
+cache_path = ".forge-cache"
+solc_version = "0.8.30"
+evm_version = "prague"
+optimizer = true
+optimizer_runs = 200
+# Deterministic bytecode: no metadata hash, no CBOR trailer.
+bytecode_hash = "none"
+cbor_metadata = false
+
+[lint]
+lint_on_build = false

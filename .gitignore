@@ -28,3 +28,5 @@ contracts/broadcast/
 .idea/
 .DS_Store
 Thumbs.db
+contracts/.forge-out/
+contracts/.forge-cache/

@@ -67,6 +67,48 @@ def db_migrate() -> None:
     asyncio.run(_run())
 
 
+chain_app = typer.Typer(help="The local chain world.")
+app.add_typer(chain_app, name="chain")
+
+
+@chain_app.command("deploy")
+def chain_deploy(
+    reset: bool = typer.Option(False, help="anvil_reset first (fresh genesis)."),
+    write: bool = typer.Option(False, help="Overwrite a differing deployment record."),
+) -> None:
+    """Deploy the WardenBench world; verify it matches contracts/deployments/anvil.json."""
+    import json
+
+    from warden.chain.rpc import RpcClient
+    from warden.chain.world import WorldDeployer, deployment_path, is_deployed, render_record
+
+    settings = get_settings()
+    path = deployment_path("anvil")
+
+    async def _run() -> int:
+        rpc = RpcClient(settings.rpc_url)
+        try:
+            if reset:
+                await rpc.reset()
+            existing = json.loads(path.read_text(encoding="utf-8")) if path.exists() else None
+            if existing is not None and not reset and await is_deployed(rpc, existing):
+                typer.echo(f"already deployed (record {path})")
+                return 0
+            record = await WorldDeployer(rpc).deploy()
+            text = render_record(record)
+            if existing is not None and render_record(existing) != text and not write:
+                typer.echo("deployment differs from the committed record; use --write to replace")
+                return 1
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(text, encoding="utf-8", newline="\n")
+            typer.echo(f"deployed {len(record['contracts'])} contracts; record {path}")
+            return 0
+        finally:
+            await rpc.aclose()
+
+    raise typer.Exit(asyncio.run(_run()))
+
+
 def main() -> None:
     app()
 
