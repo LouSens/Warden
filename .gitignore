@@ -1,0 +1,30 @@
+# secrets and local state
+.env
+data/
+*.key
+
+# python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+.coverage
+build/
+dist/
+
+# node / web
+node_modules/
+web/dist/
+web/dist-static/
+
+# contracts
+contracts/cache/
+contracts/broadcast/
+
+# editors / os
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
