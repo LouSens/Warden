@@ -11,7 +11,8 @@
 - IDs are prefixed ULIDs: `man_`, `ses_`, `prp_`, `dec_`, `apr_`, `sig_`, `run_`, `eps_`, `abk_`.
 - Colon verbs (`/approvals/{id}:approve`) are actions on a resource.
 - Every POST that creates something accepts an **`Idempotency-Key`** header. A repeat with the same
-  key and body returns the original response; the same key with a different body returns `409`.
+  key and body returns the original decision (for proposals, without re-issuing the decision token);
+  the same key with a different body returns `409`.
 - Timestamps are RFC 3339 UTC.
 - Every response carries `X-Request-ID`; every trace span carries the same id.
 

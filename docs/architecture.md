@@ -103,7 +103,8 @@ class IntentChecker(Protocol):
   on a local `anvil --fork-url` of that testnet, never against the public RPC's state. For a buy of a
   token, the simulator also tries a sell of the bought amount in the same snapshot (the honeypot
   test) and measures the received-vs-sent ratio (the transfer-tax test).
-- **Checks.** One module per check in `checks/`; the catalogue and each check's inputs are in
+- **Checks.** `checks/catalogue.py` registers one function per code (the codes live in
+  `checks/codes.py`); the catalogue and each check's inputs are in
   [policy.md §3](policy.md#3-check-catalogue).
 - **Policy.** Pure function of findings, amounts and mandate satisfaction. Language in
   [policy.md](policy.md).
@@ -217,11 +218,12 @@ src/warden/
   chain/              async JSON-RPC over httpx, anvil control, ABI registry, eth-account signing helpers
   decode/             tx, EIP-712 (2612, Permit2, 3009), 7702 authorizations, multicall recursion
   simulate/           snapshot-execute-revert; fork mode; diff extraction from state reads + logs
-  checks/             one module per check → Finding
+  checks/             codes, context, catalogue (one function per check → Finding)
   policy/             YAML schema (pydantic), loader, evaluator, impact dry-run
   mandate/            schema, LLM extractor, recipient resolver (literal, verified book entry, own-tx history)
   intent/             rule-based satisfaction + LLM judge
-  firewall/           pipeline orchestrator, decision records, decision tokens
+  firewall/           pipeline orchestrator, store (decision records, audit chain), reasons, dry-run
+  tokens.py           HMAC decision tokens (shared by firewall and signer; no other imports)
   approvals/          escalation queue (persistent), timeout sweeper
   signer/             standalone FastAPI app on its own port
   llm/                ChatModel protocol, Groq, Ollama, rate limiter, disk cache, structured output, prompt registry

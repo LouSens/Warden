@@ -79,7 +79,7 @@ CREATE TABLE action (
 CREATE TABLE simulation (
   proposal_id   TEXT PRIMARY KEY REFERENCES proposal(id),
   block_number  INTEGER NOT NULL,
-  mode          TEXT NOT NULL CHECK (mode IN ('local','fork')),
+  mode          TEXT NOT NULL CHECK (mode IN ('local','fork','declared')),
   effects_json  TEXT NOT NULL,
   reverted      INTEGER NOT NULL,
   gas_used      INTEGER,
@@ -143,9 +143,15 @@ CREATE TABLE address_book (
 );
 CREATE INDEX address_book_addr ON address_book(chain_id, address);
 
+CREATE TABLE idempotency (           -- replayed POST responses for Idempotency-Key
+  key TEXT PRIMARY KEY, method TEXT NOT NULL, path TEXT NOT NULL, body_sha256 TEXT NOT NULL,
+  status INTEGER NOT NULL, response_json TEXT NOT NULL, created_at TEXT NOT NULL
+);
+
 CREATE TABLE job (
   id               TEXT PRIMARY KEY,
-  kind             TEXT NOT NULL,                    -- bench.episode, bench.replay, approvals.expire, …
+  kind             TEXT NOT NULL,                    -- bench.episode, bench.replay, …
+  lane             TEXT NOT NULL DEFAULT 'default',  -- one lane per model; a paused lane stops only itself
   payload_json     TEXT NOT NULL,
   idempotency_key  TEXT UNIQUE,
   state            TEXT NOT NULL CHECK (state IN ('queued','leased','done','failed','dead')),
@@ -193,9 +199,9 @@ BEGIN SELECT RAISE(ABORT, 'signature log is append-only'); END;
 - Session spending is recomputed from `allow` decisions (and signer receipts) when `spent_json` is
   missing or disputed; `spent_json` is a cache.
 
-**What counts as spent.** An `allow` decision reserves its outflow against the session caps. The
-reservation is released if its token expires unused (no signature with that nonce in `signer.db`).
-The benchmark replay has no signer, so there every `allow` counts as spent.
+**What counts as spent.** An `allow` decision reserves its outflow (simulated when available,
+otherwise declared) against the session caps. In v0.1 a reservation is not released when its token
+expires unused; this is conservative (it can only make later actions stricter).
 
 ## 5. Benchmark run files
 

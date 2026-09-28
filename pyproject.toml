@@ -37,8 +37,11 @@ ignore = [
   "E501",   # the formatter owns line length; long strings and docstrings are allowed
 ]
 
+[tool.ruff.lint.flake8-bugbear]
+extend-immutable-calls = ["fastapi.Depends", "fastapi.Header", "fastapi.Query"]
+
 [tool.ruff.lint.per-file-ignores]
-"tests/**" = ["S", "T20", "PT011", "E501"]
+"tests/**" = ["S", "T20", "PT011", "E501", "ASYNC"]
 "scripts/**" = ["T20", "S603", "S607"]
 
 # ---------------------------------------------------------------- mypy

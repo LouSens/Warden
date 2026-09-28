@@ -47,6 +47,11 @@ class Settings(BaseSettings):
     trace_retention_days: int = 30
     otlp_endpoint: str | None = None
 
+    # --- firewall
+    policy_path: Path = Path("policy.yaml")
+    extractor_model: str = "groq:openai/gpt-oss-20b"
+    judge_model: str = "groq:openai/gpt-oss-20b"
+
     # --- MCP
     mcp_session_id: str | None = None
 

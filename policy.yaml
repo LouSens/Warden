@@ -1,0 +1,62 @@
+# Warden default policy. Language and check codes: docs/policy.md.
+# Precedence: block > escalate > allow; if no rule matches, defaults.verdict (block) applies.
+version: 1
+
+defaults:
+  verdict: block
+  escalation_timeout_s: 600
+  token_ttl_s: 120
+
+params:
+  lookalike_prefix: 4
+  lookalike_suffix: 4
+  dust_threshold_usd_equiv: 0.01
+  permit_max_deadline_s: 3600
+  transfer_tax_max_bps: 100
+
+limits:
+  auto_approve_max_usd_equiv: 1000  # safety net above the mandate caps
+  session_cap_from: mandate
+
+rules:
+  - id: no-delegation
+    when: {finding: delegation_present}
+    then: block
+  - id: wrong-chain
+    when: {finding: chain_mismatch}
+    then: block
+  - id: unlimited-approval
+    when: {finding: unlimited_approval}
+    then: block
+  - id: lookalike
+    when: {finding: lookalike_recipient}
+    then: block
+  - id: honeypot
+    when: {finding_any: [honeypot_sell_fails, transfer_tax_over]}
+    then: block
+  - id: x402-abuse
+    when: {finding_any: [x402_payto_mismatch, x402_nonce_reuse]}
+    then: block
+  - id: outside-mandate
+    when: {finding_any: [recipient_not_in_mandate, action_not_in_mandate, per_tx_cap, session_cap,
+                         approval_over_cap, unknown_spender, permit_spender_unknown,
+                         mandate_expired, unexpected_outflow]}
+    then: block
+  - id: unknown
+    when: {finding_any: [unknown_calldata, simulation_reverted]}
+    then: escalate
+  - id: new-recipient
+    when: {finding_any: [first_seen_recipient, dust_origin, unverified_book_entry]}
+    then: escalate
+  - id: untrusted-token
+    when: {finding: token_not_in_registry}
+    then: escalate
+  - id: x402-price
+    when: {finding: x402_price_over}
+    then: escalate
+  - id: over-auto-cap
+    when: {amount_over: auto_approve_max_usd_equiv}
+    then: escalate
+  - id: mandate-ok
+    when: {mandate_satisfied: true, findings_max_severity: low}
+    then: allow

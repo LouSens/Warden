@@ -109,6 +109,96 @@ def chain_deploy(
     raise typer.Exit(asyncio.run(_run()))
 
 
+signer_app = typer.Typer(help="The signer process (holds the only key).")
+policy_app = typer.Typer(help="Policy validation and impact dry-run.")
+audit_app = typer.Typer(help="Audit log verification.")
+app.add_typer(signer_app, name="signer")
+app.add_typer(policy_app, name="policy")
+app.add_typer(audit_app, name="audit")
+
+
+@signer_app.command("serve")
+def signer_serve(port: int = typer.Option(8201), host: str = typer.Option("127.0.0.1")) -> None:
+    """Run the signer on 127.0.0.1 (never expose it)."""
+    import uvicorn
+
+    from warden.signer.app import create_signer_app
+
+    if host not in ("127.0.0.1", "localhost", "::1", "0.0.0.0"):  # noqa: S104 - 0.0.0.0 only inside a container
+        raise typer.BadParameter("the signer binds to loopback only")
+    uvicorn.run(create_signer_app(), host=host, port=port, log_level="warning")
+
+
+@policy_app.command("validate")
+def policy_validate(path: str = typer.Argument("policy.yaml")) -> None:
+    """Validate a policy file."""
+    from pathlib import Path
+
+    from warden.policy.evaluator import PolicyInvalid, load_policy
+
+    try:
+        loaded = load_policy(Path(path).read_text(encoding="utf-8"))
+    except PolicyInvalid as exc:
+        for e in exc.errors:
+            typer.echo(f"error: {e}")
+        raise typer.Exit(1) from exc
+    typer.echo(f"valid; sha256 {loaded.sha256}; {len(loaded.policy.rules)} rules")
+
+
+@policy_app.command("diff")
+def policy_diff(path: str) -> None:
+    """Impact dry-run: list recorded decisions that would change under a candidate policy."""
+    from pathlib import Path
+
+    from warden.chain.registry import Registries
+    from warden.chain.world import load_world
+    from warden.firewall.dryrun import dry_run
+    from warden.firewall.store import FirewallStore
+    from warden.policy.evaluator import load_policy
+    from warden.storage.database import Database
+
+    settings = get_settings()
+    loaded = load_policy(Path(path).read_text(encoding="utf-8"))
+
+    async def _run() -> dict[str, object]:
+        async with Database(settings.db_path) as db:
+            return await dry_run(FirewallStore(db), loaded, Registries.from_world(load_world()))
+
+    report = asyncio.run(_run())
+    for c in report["changed"]:  # type: ignore[attr-defined]
+        typer.echo(f"{c['proposal_id']}  {c['old']:<9} -> {c['new']:<9} {', '.join(c['rules'])}")
+    typer.echo(
+        f"{len(report['changed'])} of {report['evaluated']} decisions would change "  # type: ignore[arg-type]
+        f"{report['counts']}"
+    )
+
+
+@audit_app.command("verify")
+def audit_verify(signer: bool = typer.Option(False, help="Also cross-check signer.db.")) -> None:
+    """Walk the decision hash chain; optionally check every signature has an allow decision."""
+    from warden.firewall.store import FirewallStore
+    from warden.storage.database import Database
+
+    settings = get_settings()
+
+    async def _run() -> int:
+        async with Database(settings.db_path) as db:
+            store = FirewallStore(db)
+            report = await store.verify_chain()
+            typer.echo(f"decision chain: {report}")
+            code = 0 if report["ok"] else 1
+            if signer and settings.signer_db_path.exists():
+                async with Database(settings.signer_db_path) as sdb:
+                    for row in await sdb.fetchall("SELECT id, decision_id FROM signature"):
+                        d = await store.get_decision(row["decision_id"])
+                        if d is None or d.verdict.value != "allow":
+                            typer.echo(f"signature {row['id']} has no allow decision")
+                            code = 1
+            return code
+
+    raise typer.Exit(asyncio.run(_run()))
+
+
 def main() -> None:
     app()
 

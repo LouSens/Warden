@@ -10,7 +10,7 @@ from fastapi import FastAPI
 from warden import __version__
 from warden.api.errors import install_error_handlers
 from warden.api.middleware import RequestIdMiddleware
-from warden.api.routers import health
+from warden.api.routers import firewall, health
 from warden.config import Settings, get_settings
 from warden.logging import configure_logging
 from warden.services import Services
@@ -41,6 +41,7 @@ def create_app(settings: Settings | None = None, *, run_worker: bool = True) -> 
     app.add_middleware(RequestIdMiddleware)
     install_error_handlers(app)
     app.include_router(health.router)
+    app.include_router(firewall.router)
     return app
 
 

@@ -153,13 +153,35 @@ where every outcome is a chain-state difference, with hypotheses pre-registered 
 | Design | Threat model, benchmark spec, architecture, 12 ADRs | ✅ done |
 | M0 | Skeleton, env, CI, LLM/storage/jobs foundations | ✅ done |
 | M1 | Contracts and deterministic chain world | ✅ done |
-| M2 | Firewall core, signer, audit chain | ⏳ in progress |
+| M2 | Firewall core, signer, audit chain | ✅ done |
 | M3 | Benchmark harness: tasks, attacks, checkers, replay, stats | ⬜ |
 | M4 | Agent, defences D0–D6, token-budget measurement | ⬜ |
 | M5 | Headline runs on two Groq models (needs ~3 weeks of free quota) | ⬜ |
 | M6 | Web app, MCP server, testnet mirror, write-up | ⬜ |
 
-No result exists yet. Numbers in the docs are targets or external figures marked for verification.
+No benchmark result exists yet. Numbers in the docs are targets or external figures marked for
+verification.
+
+**What works today (M2):** the firewall decodes, simulates and checks proposals against a mandate on
+a local chain and allows, escalates or blocks them; the separate signer signs only with a valid
+decision token; every decision is written to a tamper-evident log. Integration tests show benign
+payments, approve-then-swap and x402 payments allowed and settled on chain, and lookalike redirects,
+address poisoning, honeypot and tax tokens, hidden drains, unlimited approvals and EIP-7702
+delegations blocked.
+
+## Run it locally
+
+```powershell
+conda env create -f environment.yml ; conda activate warden
+pip install -r requirements.txt -r requirements-dev.txt ; pip install -e .
+copy .env.example .env                # add your free GROQ_API_KEY (needed for mandate extraction)
+docker compose up -d anvil            # local chain on :8545
+warden secrets init                   # signer key + decision-token secret in data/secrets/
+warden chain deploy                   # deterministic world: tokens, AMM, attacker contracts
+warden signer serve                   # terminal 2: the only process holding a key (:8201)
+uvicorn warden.api.main:app --port 8200   # terminal 3: API + OpenAPI docs at /docs
+pytest -q                             # 140+ tests; integration tests need anvil
+```
 
 ## Documentation
 
