@@ -1,0 +1,13 @@
+services:
+  anvil:
+    # Foundry 1.5.1-stable, pinned by digest (docs/infra.md §2).
+    image: ghcr.io/foundry-rs/foundry@sha256:043752653d5be351c71709091b3db97c4421c907eb40ea294195e7f532aadf46
+    entrypoint: ["anvil"]
+    command:
+      - --host=0.0.0.0
+      - --port=8545
+      - --chain-id=31337
+      - --hardfork=prague
+      - --timestamp=1767225600
+      - --mnemonic=test test test test test test test test test test test junk
+    ports: ["127.0.0.1:8545:8545"]
